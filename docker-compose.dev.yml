@@ -1,0 +1,45 @@
+version: "3.8"
+
+services:
+  web:
+    build:
+      args:
+        INCLUDE_DEV_DEPS: 1
+    environment:
+      PHP_IDE_CONFIG: serverName=localDocker
+    image: "room-monitoring-service:dev"
+    container_name: "room-monitoring"
+    tty: true
+    volumes:
+      - "./:/var/www/"
+      - "./docker/www/config/autoload/doctrine.local.php:/var/www/config/autoload/doctrine.local.php"
+      - "./docker/php/99-xdebug.ini:/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
+
+  postgres:
+    depends_on:
+      - pgadmin
+    volumes:
+      - ./.db:/var/lib/postgresql/data
+
+  pgadmin:
+    container_name: "room-monitoring-pgadmin4"
+    environment:
+      - TZ=${TIMEZONE:-Asia/Tashkent}
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD}
+      - PGADMIN_DISABLE_POSTFIX=1
+    image: dpage/pgadmin4
+    ports:
+      - mode: host
+        target: 80
+        published: ${PGADMIN_PUBLISH_PORT:-8081}
+    restart: unless-stopped
+    volumes:
+      - ${PROJECT_ROOT}/data/pgadmin_servers.json:/pgadmin4/servers.json
+
+  rabbitmq:
+    image: rabbitmq:3.9.22-management
+    ports:
+      - mode: host
+        target: 15672
+        published: ${RABBITMQ_MANAGEMENT_PORT:-15672}

@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  web:
+    build:
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+      context: .
+      dockerfile: Dockerfile
+    image: "room-monitoring"
+    container_name: "room-monitoring"
+    depends_on:
+      - postgres
+      - rabbitmq
+    environment:
+      TZ: ${TIMEZONE:-Asia/Tashkent}
+      DB_DRIVER: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+    env_file:
+      - .env
+    ports:
+      - mode: host
+        target: 8080
+        published: ${API_PUBLISH_PORT:-8080}
+    restart: unless-stopped
+
+  postgres:
+    container_name: "room-monitoring-postgres"
+    environment:
+      TZ: ${TIMEZONE}
+      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_DB: ${DB_DBNAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    image: postgres:13-alpine
+    restart: unless-stopped
+
+  rabbitmq:
+    container_name: "rms-rabbitmq"
+    environment:
+      TZ: ${TIMEZONE}
+    image: rabbitmq:3.9.22
+    ports:
+      - mode: host
+        target: 5672
+        published: ${RABBITMQ_PORT:-5672}
+      - mode: host
+        target: 1883
+        published: 1883
+    restart: unless-stopped
+    volumes:
+      - ./docker/rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins
+      - ./docker/rabbitmq/conf.d:/etc/rabbitmq/conf.d

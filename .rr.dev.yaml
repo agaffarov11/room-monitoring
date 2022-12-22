@@ -1,0 +1,93 @@
+version: "2.7"
+
+amqp:
+  addr: amqp://rms:admin@rabbitmq:5672
+
+logs:
+  mode: development
+  channels:
+    http:
+      level: debug # Log all http requests, set to info to disable
+    server:
+      level: debug # Everything written to worker stderr is logged
+    metrics:
+      level: debug
+
+rpc:
+  listen: tcp://127.0.0.1:6001
+
+http:
+  address: 0.0.0.0:8080
+  pool:
+    num_workers: 2
+    debug: true
+
+server:
+  command: php ./bin/rr-consumer.php
+  relay: pipes
+  env:
+    - RR_MODE: "jobs"
+    - XDEBUG_SESSION: "1"
+
+reload:
+  enabled: true
+  interval: 1s
+  patterns: [".php", ".yaml"]
+  services:
+    http:
+      dirs: ["."]
+      ignore: [ "vendor", ".db" ]
+      recursive: true
+
+jobs:
+  consume: [ "sensors_queue" ]
+
+  pipelines:
+    # User defined name of the queue.
+    sensors_queue:
+      # Driver name
+      #
+      # This option is required.
+      driver: amqp
+
+      # Driver's configuration
+      #
+      # Should not be empty
+      config:
+
+        # QoS - prefetch.
+        #
+        # Default: 10
+        prefetch: 10
+
+        # Pipeline priority
+        #
+        # If the job has priority set to 0, it will inherit the pipeline's priority. Default: 10.
+        priority: 1
+
+        # Consume any payload type (not only Jobs structured)
+        #
+        # Default: false
+        consume_all: true
+
+        exchange_durable: true
+
+        # Queue name
+        #
+        # Default: default
+        queue: ${RR_QUEUE_NAME}
+
+        # Exchange name
+        #
+        # Default: amqp.default
+        exchange: ${RR_EXCHANGE}
+
+        # Exchange type
+        #
+        # Default: direct.
+        exchange_type: topic
+
+        # Routing key for the queue
+        #
+        # Default: empty.
+        routing_key: rms.#
